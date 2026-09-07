@@ -369,6 +369,75 @@ Les commandes peuvent également être proposées via des **boutons Discord**, p
 
 
 
+---
+
+## 🛠️ Implémentation
+
+Cette première version (MVP) est un bot Node.js/TypeScript autonome (pas un module
+vert.x classique de l'ENT), sur le même principe que le module `companion`
+(extension Chrome) : un client qui parle à l'API REST d'entcore, sans dupliquer
+les données ni l'identité.
+
+### Ce qui est réellement implémenté
+
+* `/openent link` — liaison de compte via OAuth2 (authorization code), pas de
+  mot de passe stocké côté bot.
+* `/openent classes`, `/openent devoirs`, `/openent agenda`, `/openent ressources` —
+  lecture réelle depuis Open ENT (`/auth/oauth2/userinfo`, module `cahier-de-textes`,
+  module `edt`, module `workspace`).
+* `/openent annonce`, `/openent partager` — envoi réel via la messagerie
+  (`/conversation/visible` + `/conversation/send`), donc soumis aux mêmes droits
+  qu'un message Open ENT classique.
+* `/openent meet` — lien de visio construit depuis un gabarit configurable
+  (`MEET_URL_TEMPLATE`), sur le même principe que `companion`.
+
+### Différé (nécessite des choix ou des développements hors de ce dépôt)
+
+* `/openent ask` (assistant IA) : pas de fournisseur IA ni de plan RAG choisi.
+* Synchronisation rôles Discord ↔ groupes Open ENT et notifications temps réel
+  (nouveau devoir, cours qui démarre...) : nécessitent qu'entcore *appelle* le
+  bot (webhook sortant), ce qui n'existe pas aujourd'hui côté plateforme.
+
+### Authentification
+
+Le bot est une application OAuth2 tierce déclarée dans le module `app-registry`
+d'entcore (`POST /appregistry/application`, cf.
+`libs/entcore/app-registry/.../AppRegistryController.java`). Un administrateur
+Open ENT doit :
+
+1. déclarer l'application (nom, `redirect_uri` = `<url publique du bot>/oauth/callback`,
+   `scope`) et récupérer `client_id`/`client_secret` (= `secret`) ;
+2. renseigner ces valeurs dans `.env` du bot (voir `.env.example`).
+
+`/openent link` redirige ensuite l'utilisateur vers
+`/auth/oauth2/auth` (entcore), qui redirige à son tour vers
+`ENT_OAUTH_REDIRECT_URI` avec un `code` ; le bot l'échange contre un token via
+`/auth/oauth2/token`. Le token est stocké (avec refresh_token) dans
+`DATA_DIR/links.json`, indexé par identifiant Discord.
+
+### Démarrage
+
+```bash
+npm install
+cp .env.example .env   # à compléter (voir ci-dessus)
+npm run register-commands   # une fois, à chaque changement des commandes
+npm run dev                 # ou : npm run build && npm start
+```
+
+Le serveur HTTP local (port `PORT`, healthcheck sur `/healthz`) doit être
+exposé publiquement à l'URL déclarée dans `ENT_OAUTH_REDIRECT_URI`, pour
+recevoir le retour OAuth2.
+
+### Limite connue
+
+Les noms exacts des champs JSON renvoyés par `/auth/oauth2/userinfo` et par le
+module `edt` (`getCourses`) dépendent de la configuration de la plateforme et
+n'ont pas pu être vérifiés contre une instance réelle depuis ce poste de dev
+(pas d'accès réseau). `src/ent/entApi.ts` lit ces champs de façon défensive
+(`extractProfile`) ; si `/openent classes` ou `/openent agenda` renvoient des
+listes vides sur une instance réelle, commencer par comparer la réponse brute
+de ces deux endpoints aux champs attendus dans ce fichier.
+
 ## ❤️ Open Source
 
 Ce projet s'inscrit dans l'écosystème **Open ENT** et a vocation à rester ouvert, extensible et interopérable.
