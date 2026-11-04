@@ -120,8 +120,8 @@ export class EntApi {
 export function extractProfile(info: EntUserInfo): EntProfile {
   const displayName =
     info.username ??
-    [info.firstName ?? info.given_name, info.lastName ?? info.family_name].filter(Boolean).join(" ").trim() ||
-    "Utilisateur Open ENT";
+    ([info.firstName ?? info.given_name, info.lastName ?? info.family_name].filter(Boolean).join(" ").trim() ||
+      "Utilisateur Open ENT");
   return {
     displayName,
     profile: info.type,
