@@ -7,7 +7,7 @@ COPY src ./src
 COPY scripts ./scripts
 RUN npm run build
 
-FROM node:20-alpine
+FROM node:26-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json package-lock.json* ./
